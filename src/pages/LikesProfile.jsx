@@ -1,25 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { styled } from "styled-components";
 import { Database } from "@tableland/sdk";
-import { Wallet, getDefaultProvider, ethers } from "ethers";
+import { Wallet, ethers } from "ethers";
 import { ConnectWallet, useAddress } from "@thirdweb-dev/react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
-import {
-    Chat,
-    Close,
-    Favorite,
-    HeatPumpRounded,
-    Person,
-} from "@mui/icons-material";
+import { Chat, Favorite, Person, Close, ArrowBack } from "@mui/icons-material";
 import moment from "moment";
 import { BounceLoader } from "react-spinners";
 
-const Home = () => {
-    const address = useAddress();
+const LikesProfile = () => {
     const navigate = useNavigate();
-    const [feedsList, setFeedsList] = useState([]);
-    const [feedIndex, setFeedIndex] = useState(0);
+    const params = useParams();
+    const address = useAddress();
+    const [profileInfo, setProfileInfo] = useState({});
     const usersTable = "users_80001_8033";
     const likesTable = "likes_80001_8073";
     const privateKey =
@@ -32,42 +26,36 @@ const Home = () => {
     const db = new Database({ signer });
     const [isLikeSending, setIsLikeSending] = useState(false);
 
-    useEffect(() => {
-        if (!address) {
-            navigate("/");
-        } else {
-            fetchFeeds();
-        }
-    }, [address]);
-
-    const fetchFeeds = async () => {
-        const data = await db
-            .prepare(
-                `SELECT * FROM ${usersTable} where wallet_address <> '${address}';`
-            )
-            .all();
-        setFeedsList(data.results);
-    };
-
-    const sendLike = async () => {
-        setIsLikeSending(true);
+    const fetchProfileInfo = async () => {
         const likeEntryInDB = await db
             .prepare(
-                `SELECT * FROM ${likesTable} where from_user = '${address}' AND to_user = '${feedsList[feedIndex].wallet_address}'`
+                `SELECT * FROM ${likesTable} JOIN ${usersTable} ON ${likesTable}.to_user = '${address}' AND ${likesTable}.from_user = '${params.id}' AND ${likesTable}.from_user = ${usersTable}.wallet_address;`
             )
             .all();
         if (likeEntryInDB.results.length == 0) {
-            const { meta: insertLike } = await db
-                .prepare(
-                    `INSERT INTO ${likesTable}(to_user, from_user, like_done, relike_done) values('${feedsList[feedIndex].wallet_address}', '${address}', 1, 0);`
-                )
-                .run();
-
-            await insertLike.txn.wait();
-        } else {
-            alert("You have already liked them!");
+            navigate("/hearts");
+            return;
         }
+        setProfileInfo(likeEntryInDB.results[0]);
+    };
+
+    useEffect(() => {
+        if (address && params.id) {
+            fetchProfileInfo();
+        }
+    }, [address, params]);
+
+    const performAMatch = async () => {
+        setIsLikeSending(true);
+        const { meta: updateMatch } = await db
+            .prepare(
+                `UPDATE ${likesTable} SET relike_done = 1 WHERE to_user = '${address}' AND from_user = '${profileInfo.wallet_address}';`
+            )
+            .run();
+
+        await updateMatch.txn.wait();
         setIsLikeSending(false);
+        // TODO: Add toast to make a match or animation
     };
 
     return (
@@ -90,11 +78,7 @@ const Home = () => {
                         <Favorite fontSize="small" />
                         Hearts
                     </NavOption>
-                    <NavOption
-                        onClick={() => {
-                            navigate("/chats");
-                        }}
-                    >
+                    <NavOption>
                         <Chat fontSize="small" />
                         Chats
                     </NavOption>
@@ -109,22 +93,27 @@ const Home = () => {
                         <AppLogo>Art & Chai</AppLogo>
                         <ConnectWallet />
                     </AppHeaderContainer>
-                    {feedsList.length > 0 ? (
+                    <GoBackButton
+                        onClick={() => {
+                            navigate("/hearts");
+                        }}
+                    >
+                        <ArrowBack fontSize="small" />
+                        <GoBackText>Back</GoBackText>
+                    </GoBackButton>
+                    {profileInfo.wallet_address ? (
                         <ProfileContentContainer>
                             <MainProfileImage src="https://hildurko.com/wp-content/uploads/2020/08/Calm-Lake-Landscape-Easy-acrylic-painting-for-beginners-PaintingTutorial-Painting-ASMR.jpg" />
+
                             <ProfileInfoContainer>
-                                <ProfileName>
-                                    {feedsList[feedIndex].name}
-                                </ProfileName>
+                                <ProfileName>{profileInfo.name}</ProfileName>
                                 <ProfileGender>
-                                    {feedsList[feedIndex].gender == 0
-                                        ? "F"
-                                        : "M"}
+                                    {profileInfo.gender == 0 ? "F" : "M"}
                                 </ProfileGender>
                                 ,
                                 <ProfileAge>
                                     {moment().diff(
-                                        moment(feedsList[feedIndex].dob),
+                                        moment(profileInfo.dob),
                                         "years"
                                     )}
                                 </ProfileAge>
@@ -134,7 +123,7 @@ const Home = () => {
                                     What do I love?
                                 </WriteUpQuestion>
                                 <WriteUpAnswer>
-                                    {feedsList[feedIndex].profile_json.bio}
+                                    {profileInfo.profile_json.bio}
                                 </WriteUpAnswer>
                             </ProfileWriteUpContainer>
                             <AdditionContentContainer>
@@ -153,7 +142,7 @@ const Home = () => {
                                 <SkipButton>
                                     <Close color="#ec4b66" />
                                 </SkipButton>
-                                <LoveButton onClick={sendLike}>
+                                <LoveButton onClick={performAMatch}>
                                     {isLikeSending ? (
                                         <BounceLoader size={40} color="white" />
                                     ) : (
@@ -163,7 +152,7 @@ const Home = () => {
                             </OverflowActionButtons>
                         </ProfileContentContainer>
                     ) : (
-                        "No profiles found!"
+                        "Not found!"
                     )}
                 </MainContentContainer>
             </HomeAppContainer>
@@ -238,6 +227,27 @@ const AppLogo = styled.div`
     color: #ec4b66;
     font-family: "Pacifico", cursive;
     font-size: 1.4rem;
+`;
+
+const GoBackButton = styled.button`
+    border: none;
+    outline: none;
+    background-color: transparent;
+    align-self: flex-start;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    &:hover {
+        background-color: #ec4b662f;
+    }
+`;
+
+const GoBackText = styled.div`
+    margin-left: 0.5rem;
 `;
 
 const ProfileContentContainer = styled.div`
@@ -333,4 +343,4 @@ const LoveButton = styled.div`
     cursor: pointer;
 `;
 
-export default Home;
+export default LikesProfile;
