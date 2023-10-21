@@ -1,16 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { styled } from "styled-components";
 import { Database } from "@tableland/sdk";
 import { Wallet, ethers } from "ethers";
-import { ConnectWallet, useAddress } from "@thirdweb-dev/react";
-import { useNavigate } from "react-router-dom";
+import { ConnectWallet, useAddress, useSigner } from "@thirdweb-dev/react";
+import { useNavigate, useParams } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
 import { Chat, Favorite, Person } from "@mui/icons-material";
 import moment from "moment";
+import { Client } from "@xmtp/xmtp-js";
 
-const ChatsList = () => {
+const ChatPage = () => {
     const navigate = useNavigate();
     const address = useAddress();
+    const chatSigner = useSigner();
+    const isConnected = !!chatSigner;
+    
+    const params = useParams();
     const [chatsList, setChatsList] = useState([]);
     const usersTable = "users_80001_8033";
     const likesTable = "likes_80001_8073";
@@ -22,20 +27,83 @@ const ChatsList = () => {
     );
     const signer = wallet.connect(provider);
     const db = new Database({ signer });
+    const [profileInfo, setProfileInfo] = useState({});
+    const [chatMessage, setChatMessage] = useState("");
+    const [messages, setMessages] = useState([]);
+    const convRef = useRef(null);
+    const clientRef = useRef(null);
+    const [isOnNetwork, setIsOnNetwork] = useState(false);
+    
 
-    useEffect(() => {
-        fetchAllChatsList();
-    }, [address]);
-
-    const fetchAllChatsList = async () => {
-        const data = await db
+    const fetchProfileInfo = async () => {
+        const likeEntryInDB = await db
             .prepare(
-                `SELECT * FROM ${likesTable} JOIN ${usersTable} ON ((${likesTable}.to_user = '${address}' AND ${likesTable}.from_user = ${usersTable}.wallet_address) OR (${likesTable}.from_user = '${address}' AND ${likesTable}.to_user = ${usersTable}.wallet_address)) AND ${likesTable}.like_done = 1 AND ${likesTable}.relike_done = 1;`
+                `SELECT * FROM ${usersTable} WHERE wallet_address = '${params.id}';`
             )
             .all();
-        setChatsList(data.results);
-        console.log(data.results);
+        if (likeEntryInDB.results.length == 0) {
+            navigate("/chats");
+            return;
+        }
+        setProfileInfo(likeEntryInDB.results[0]);
     };
+
+    useEffect(() => {
+        if (address && params.id) {
+            fetchProfileInfo();
+        }
+    }, [address, params]);
+
+    const initXmtp = async () => {
+        const xmtp = await Client.create(chatSigner, {env: 'dev'});
+        console.log(xmtp);
+        newConversation(xmtp, profileInfo.wallet_address);
+        setIsOnNetwork(!!xmtp.address);
+        clientRef.current = xmtp;
+    }
+
+    const newConversation = async (xmtp_client, addressTo) => {
+        if(await xmtp_client?.canMessage(addressTo)){
+            const conversation = await xmtp_client.conversations.newConversation(
+                addressTo
+            );
+            convRef.current = conversation;
+            const allMessages = await conversation.messages();
+            console.log(allMessages);
+            setMessages(allMessages);
+        }else{
+            alert("Can't sent message as not on network!");
+        }
+    }
+
+    const sendMessage = async () => {
+        if(convRef.current && chatMessage){
+            await convRef.current.send(chatMessage);
+            setChatMessage("");
+        }
+    }
+
+    useEffect(() => {
+        if(isOnNetwork && convRef.current){
+            const streamMessages = async () => {
+                const newStream = await convRef.current.streamMessages();
+                for await (const msg of newStream) {
+                    const exists = messages.find((m) => m.id === msg.id);
+                    if(!exists){
+                        setMessages((prevMessages) => {
+                            const msgsnew = [...prevMessages, msg];
+                            return msgsnew;
+                        });
+                    }
+                }
+            }
+            streamMessages();
+        }
+    }, [isOnNetwork]);
+
+    useEffect(() => {
+        console.log(messages);
+    }, [messages]);
 
     return (
         <HomeContainer>
@@ -76,43 +144,21 @@ const ChatsList = () => {
                         <AppLogo>Art & Chai</AppLogo>
                         <ConnectWallet />
                     </AppHeaderContainer>
-                    <LikesPageContainer>
-                        <PageHeader>My Chats</PageHeader>
-                        <LikesList>
-                            {chatsList.map((chatProfile) => {
-                                return (
-                                    <LikeProfileCard
-                                        onClick={() => {
-                                            navigate(
-                                                `/chats/${chatProfile.wallet_address}`
-                                            );
-                                        }}
-                                    >
-                                        <LikeProfilePic />
-                                        <LikeProfileAbout>
-                                            <LikeProfileName>
-                                                {chatProfile.name}
-                                            </LikeProfileName>
-                                            <LikeProfileSubtext>
-                                                <ProfileGender>
-                                                    {chatProfile.gender == 0
-                                                        ? "F"
-                                                        : "M"}
-                                                </ProfileGender>
-                                                ,
-                                                <ProfileAge>
-                                                    {moment().diff(
-                                                        moment(chatProfile.dob),
-                                                        "years"
-                                                    )}
-                                                </ProfileAge>
-                                            </LikeProfileSubtext>
-                                        </LikeProfileAbout>
-                                    </LikeProfileCard>
-                                );
-                            })}
-                        </LikesList>
-                    </LikesPageContainer>
+                    <ChatPageContainer>
+                        <ChatListContainer>
+                        {
+                            messages.map((message) => {
+                                return <ChatBubble isMe={message.senderAddress == address}>{message.content}</ChatBubble>;
+                            })
+                        }
+                        </ChatListContainer>
+                        
+                        <input value={chatMessage} onChange={(e) => {
+                            setChatMessage(e.target.value);
+                        }}/>
+                        <button onClick={sendMessage}>Send</button>
+                        <button onClick={initXmtp}>Init XMTP</button>
+                    </ChatPageContainer>
                 </MainContentContainer>
             </HomeAppContainer>
         </HomeContainer>
@@ -187,65 +233,28 @@ const AppLogo = styled.div`
     font-size: 1.4rem;
 `;
 
-const LikesPageContainer = styled.div`
+const ChatPageContainer = styled.div`
     display: flex;
+    overflow: hidden;
     flex-direction: column;
     flex: 1;
     padding: 1rem 0;
 `;
 
-const PageHeader = styled.div`
-    font-size: 1.1rem;
-    font-weight: bold;
-`;
-
-const LikesList = styled.div`
+const ChatListContainer = styled.div`
+    flex: 1;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    flex: 1;
-    padding: 1rem 0;
     overflow-y: auto;
 `;
 
-const LikeProfileCard = styled.div`
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    background-color: #ffe2e7;
+const ChatBubble = styled.div`
+    padding: 0.5rem;
+    background-color: ${props => props.isMe ? "#b0b3ff" : "#71ff9b"};
+    margin-bottom: 0.5rem;
     border-radius: 0.5rem;
-    margin-bottom: 1rem;
-    cursor: pointer;
+    align-self: ${props => props.isMe ? "flex-end" : "flex-start"};
 `;
 
-const LikeProfilePic = styled.div`
-    flex: 2;
-    height: 100px;
-    background-image: url("https://hildurko.com/wp-content/uploads/2020/08/Calm-Lake-Landscape-Easy-acrylic-painting-for-beginners-PaintingTutorial-Painting-ASMR.jpg");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-`;
-
-const LikeProfileAbout = styled.div`
-    flex: 3;
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-`;
-
-const LikeProfileName = styled.div``;
-
-const LikeProfileSubtext = styled.div`
-    display: flex;
-    flex-direction: row;
-`;
-
-const ProfileGender = styled.span`
-    font-weight: 600;
-`;
-const ProfileAge = styled.span`
-    font-weight: 600;
-`;
-
-export default ChatsList;
+export default ChatPage;

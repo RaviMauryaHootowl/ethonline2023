@@ -57,7 +57,11 @@ const Likes = () => {
                         <Favorite fontSize="small" />
                         Hearts
                     </NavOption>
-                    <NavOption>
+                    <NavOption
+                        onClick={() => {
+                            navigate("/chats");
+                        }}
+                    >
                         <Chat fontSize="small" />
                         Chats
                     </NavOption>
@@ -77,9 +81,13 @@ const Likes = () => {
                         <LikesList>
                             {likesList.map((likeProfile) => {
                                 return (
-                                    <LikeProfileCard onClick={() => {
-                                        navigate(`/hearts/${likeProfile.wallet_address}`)
-                                    }}>
+                                    <LikeProfileCard
+                                        onClick={() => {
+                                            navigate(
+                                                `/hearts/${likeProfile.wallet_address}`
+                                            );
+                                        }}
+                                    >
                                         <LikeProfilePic />
                                         <LikeProfileAbout>
                                             <LikeProfileName>

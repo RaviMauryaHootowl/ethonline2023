@@ -19,6 +19,7 @@ import { Scroll } from "@thirdweb-dev/chains";
 import Likes from "./pages/Likes";
 import LikesProfile from "./pages/LikesProfile";
 import ChatsList from "./pages/ChatsList";
+import ChatPage from "./pages/Chat";
 
 const App = () => {
     const router = createBrowserRouter([
@@ -45,6 +46,10 @@ const App = () => {
         {
             path: "/chats",
             element: <ChatsList />,
+        },
+        {
+            path: "/chats/:id",
+            element: <ChatPage />,
         },
     ]);
 
