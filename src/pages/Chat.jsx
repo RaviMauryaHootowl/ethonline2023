@@ -11,12 +11,9 @@ import { Wallet, ethers } from "ethers";
 import { ConnectWallet, useAddress, useSigner } from "@thirdweb-dev/react";
 import { useNavigate, useParams } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
-import { Chat, Favorite, Person } from "@mui/icons-material";
+import { Chat, Favorite, MoreVert, Person, Send } from "@mui/icons-material";
 import moment from "moment";
-import { Client } from "@xmtp/xmtp-js";
-import {Buffer} from "buffer";
-
-window.Buffer = window.Buffer || Buffer;
+import { Client, useStreamMessages } from "@xmtp/react-sdk";
 
 const ChatPage = () => {
     const navigate = useNavigate();
@@ -29,10 +26,10 @@ const ChatPage = () => {
     const usersTable = "users_80001_8033";
     const likesTable = "likes_80001_8073";
     const privateKey =
-        "8fbbd233d350f9e9d3a13181253c1660280934382295662dc453075f05055731";
+    process.env.REACT_APP_PRIVATE_KEY;
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
-        "https://polygon-mumbai.infura.io/v3/4458cf4d1689497b9a38b1d6bbf05e78"
+        process.env.REACT_APP_RPC_URL
     );
     const signer = wallet.connect(provider);
     const db = new Database({ signer });
@@ -42,6 +39,7 @@ const ChatPage = () => {
     const convRef = useRef(null);
     const clientRef = useRef(null);
     const [isOnNetwork, setIsOnNetwork] = useState(false);
+    const bottomOfChat = useRef();
 
     // helper function
     const buildContentTopic = (name) => `/xmtp/0/${name}/proto`;
@@ -114,26 +112,40 @@ const ChatPage = () => {
         }
     };
 
+    // callback to handle incoming messages
+    //   const onMessage = useCallback(
+    //     (message) => {
+    //       setMessages((prev) => [...prev, message]);
+    //     },
+    //     [messages],
+    //   );
+
+    //   useStreamMessages(convRef.current, {onMessage});
+
     useEffect(() => {
         if (isOnNetwork && convRef.current) {
             const streamMessages = async () => {
                 const newStream = await convRef.current.streamMessages();
                 for await (const msg of newStream) {
+                    console.log(msg);
                     const exists = messages.find((m) => m.id === msg.id);
                     if (!exists) {
                         setMessages((prevMessages) => {
                             const msgsnew = [...prevMessages, msg];
                             return msgsnew;
                         });
+                        return;
                     }
                 }
             };
             streamMessages();
         }
-    }, [isOnNetwork]);
+    }, [messages, isOnNetwork]);
 
     useEffect(() => {
-        console.log(messages);
+        if(bottomOfChat.current){
+            bottomOfChat.current.scrollIntoView();
+        }
     }, [messages]);
 
     return (
@@ -201,16 +213,22 @@ const ChatPage = () => {
                                     </ChatBubble>
                                 );
                             })}
+                            <div ref={bottomOfChat}></div>
                         </ChatListContainer>
-
-                        <input
-                            value={chatMessage}
-                            onChange={(e) => {
-                                setChatMessage(e.target.value);
-                            }}
-                        />
-                        <button onClick={sendMessage}>Send</button>
-                        <button onClick={initXmtp}>Init XMTP</button>
+                        <ChatBottomActions>
+                            <MessageInput
+                                value={chatMessage}
+                                onChange={(e) => {
+                                    setChatMessage(e.target.value);
+                                }}
+                            />
+                            <SendButton onClick={sendMessage}>
+                                <Send fontSize="small"/>
+                            </SendButton>
+                            <SendButton onClick={initXmtp}>
+                                <MoreVert fontSize="small"/>
+                            </SendButton>
+                        </ChatBottomActions>
                     </ChatPageContainer>
                 </MainContentContainer>
             </HomeAppContainer>
@@ -308,6 +326,39 @@ const ChatBubble = styled.div`
     margin-bottom: 0.5rem;
     border-radius: 0.5rem;
     align-self: ${(props) => (props.isMe ? "flex-end" : "flex-start")};
+`;
+
+const ChatBottomActions = styled.div`
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+`;
+
+const MessageInput = styled.input`
+    flex: 1;
+    border-radius: 0.3rem;
+    margin-right: 0.5rem;
+    padding: 0.5rem;
+    border: none;
+    background-color: white;
+    border: solid 2px #ec4b66;
+    outline: none;
+`;
+
+const SendButton = styled.div`
+    background-color: #ec4b66;
+    border: none;
+    outline: none;
+    color: white;
+    margin: 0.5rem;
+    margin-left: 0rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
 `;
 
 export default ChatPage;

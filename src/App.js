@@ -20,8 +20,10 @@ import Likes from "./pages/Likes";
 import LikesProfile from "./pages/LikesProfile";
 import ChatsList from "./pages/ChatsList";
 import ChatPage from "./pages/Chat";
-
+import 'react-toastify/dist/ReactToastify.css';
 import '@notifi-network/notifi-react-card/dist/index.css';
+import { ToastContainer } from "react-toastify";
+import EditProfile from "./pages/EditProfile";
 
 const App = () => {
     const router = createBrowserRouter([
@@ -53,6 +55,10 @@ const App = () => {
             path: "/chats/:id",
             element: <ChatPage />,
         },
+        {
+          path: "/account",
+          element: <EditProfile />,
+      },
     ]);
 
     return (
@@ -63,8 +69,9 @@ const App = () => {
                 walletConnect(),
             ]}
             activeChain={Scroll}
-            clientId="2ca083eafd3ceae4cf0dfb62ff3acb5b"
+            clientId={process.env.THIRD_WEB_CLIENT_ID}
         >
+            <ToastContainer />
             <RouterProvider router={router}></RouterProvider>
         </ThirdwebProvider>
     );

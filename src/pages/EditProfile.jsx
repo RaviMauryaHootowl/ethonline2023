@@ -44,18 +44,18 @@ const rejectStyle = {
     borderColor: "#ff1744",
 };
 
-const Register = () => {
+const EditProfile = () => {
     const usersTable = "users_80001_8033";
     const address = useAddress();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
-    const [profileName, setProfileName] = useState("");
-    const [profileDob, setProfileDob] = useState("");
-    const [profileGender, setProfileGender] = useState("0");
-    const [profileBio, setProfileBio] = useState("");
+    const [profileName, setProfileName] = useState("Ravi Maurya");
+    const [profileDob, setProfileDob] = useState("2001-07-25");
+    const [profileGender, setProfileGender] = useState("1");
+    const [profileBio, setProfileBio] = useState("Passionate painter with a palette full of colors and a heart full of creativity. Seeking a muse to inspire new masterpieces and someone to share the canvas of life. Lets brush strokes of love and adventure together.");
     const [profilePicFile, setProfilePicFile] = useState(null);
     const privateKey =
-        "";
+    process.env.REACT_APP_PRIVATE_KEY;
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
         process.env.REACT_APP_RPC_URL
@@ -238,7 +238,7 @@ const Register = () => {
                     </TextInputGroup>
                 </RegisterPageContainer>
                 <SubmitButton onClick={registerUser}>
-                    {isLoading ? <BeatLoader color="#ffffff" /> : "Create"}
+                    {isLoading ? <BeatLoader color="#ffffff" /> : "Update"}
                 </SubmitButton>
             </HomeAppContainer>
         </HomeContainer>
@@ -353,4 +353,4 @@ const RadioButtonWithLabel = styled.div`
     flex-direction: row;
 `;
 
-export default Register;
+export default EditProfile;

@@ -8,12 +8,14 @@ import HomeIcon from "@mui/icons-material/Home";
 import {
     Chat,
     Close,
+    ErrorOutlineOutlined,
     Favorite,
     HeatPumpRounded,
     Person,
 } from "@mui/icons-material";
 import moment from "moment";
 import { BounceLoader } from "react-spinners";
+import { toast } from "react-toastify";
 
 const Home = () => {
     const address = useAddress();
@@ -23,10 +25,10 @@ const Home = () => {
     const usersTable = "users_80001_8033";
     const likesTable = "likes_80001_8073";
     const privateKey =
-        "8fbbd233d350f9e9d3a13181253c1660280934382295662dc453075f05055731";
+    process.env.REACT_APP_PRIVATE_KEY;
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
-        "https://polygon-mumbai.infura.io/v3/4458cf4d1689497b9a38b1d6bbf05e78"
+        process.env.REACT_APP_RPC_URL
     );
     const signer = wallet.connect(provider);
     const db = new Database({ signer });
@@ -41,12 +43,20 @@ const Home = () => {
     }, [address]);
 
     const fetchFeeds = async () => {
-        const data = await db
+        const myProfile = await db
             .prepare(
-                `SELECT * FROM ${usersTable} where wallet_address <> '${address}';`
+                `SELECT * FROM ${usersTable} where wallet_address = '${address}';`
             )
             .all();
-        setFeedsList(data.results);
+        if (myProfile.results.length > 0) {
+            const data = await db
+                .prepare(
+                    `SELECT * FROM ${usersTable} where wallet_address <> '${address}' AND gender <> ${myProfile.results[0].gender};`
+                )
+                .all();
+            setFeedsList(data.results);
+            setFeedIndex(0);
+        }
     };
 
     const sendLike = async () => {
@@ -68,6 +78,12 @@ const Home = () => {
             alert("You have already liked them!");
         }
         setIsLikeSending(false);
+        toast.success("💓 Heart sent!");
+        goToNextProfile();
+    };
+
+    const goToNextProfile = () => {
+        setFeedIndex((prevIndex) => prevIndex + 1);
     };
 
     return (
@@ -99,7 +115,11 @@ const Home = () => {
                         Chats
                     </NavOption>
                     <FlexFullContainer />
-                    <NavOption>
+                    <NavOption
+                        onClick={() => {
+                            navigate("/account");
+                        }}
+                    >
                         <Person fontSize="small" />
                         Account
                     </NavOption>
@@ -109,9 +129,11 @@ const Home = () => {
                         <AppLogo>Art & Chai</AppLogo>
                         <ConnectWallet />
                     </AppHeaderContainer>
-                    {feedsList.length > 0 ? (
+                    {feedsList.length > 0 && feedIndex < feedsList.length ? (
                         <ProfileContentContainer>
-                            <MainProfileImage src="https://hildurko.com/wp-content/uploads/2020/08/Calm-Lake-Landscape-Easy-acrylic-painting-for-beginners-PaintingTutorial-Painting-ASMR.jpg" />
+                            <MainProfileImage
+                                src={`https://${feedsList[feedIndex].profile_json.content[0]}`}
+                            />
                             <ProfileInfoContainer>
                                 <ProfileName>
                                     {feedsList[feedIndex].name}
@@ -128,7 +150,12 @@ const Home = () => {
                                         "years"
                                     )}
                                 </ProfileAge>
+                                
                             </ProfileInfoContainer>
+                            <ProfileFakeContainer>
+
+                            <ErrorOutlineOutlined color="red"/> This profile seems fake as disputed on UMA
+                            </ProfileFakeContainer>
                             <ProfileWriteUpContainer>
                                 <WriteUpQuestion>
                                     What do I love?
@@ -137,20 +164,33 @@ const Home = () => {
                                     {feedsList[feedIndex].profile_json.bio}
                                 </WriteUpAnswer>
                             </ProfileWriteUpContainer>
-                            <AdditionContentContainer>
-                                <WriteUpQuestion>
-                                    Some peaceful paintings
-                                </WriteUpQuestion>
-                                <MainProfileImage src="https://i.ytimg.com/vi/3jEwpJKyKMM/maxresdefault.jpg" />
-                            </AdditionContentContainer>
-                            <AdditionContentContainer>
-                                <WriteUpQuestion>
-                                    What do you love?
-                                </WriteUpQuestion>
-                                <MainProfileImage src="https://www.myhobbyclass.com/storage/Acrylic-painting-of-Spring-season-landscape-painting-with-tree-on.jpg" />
-                            </AdditionContentContainer>
+                            {feedsList[feedIndex].profile_json.content.length >
+                            1 ? (
+                                feedsList[feedIndex].profile_json.content
+                                    .slice(1)
+                                    .map((c) => {
+                                        return (
+                                            <AdditionContentContainer>
+                                                <WriteUpQuestion>
+                                                    More Content
+                                                </WriteUpQuestion>
+                                                {c.includes(".mp3") ? (
+                                                    <iframe
+                                                        src={`https://${c}`}
+                                                    />
+                                                ) : (
+                                                    <MainProfileImage
+                                                        src={`https://${c}`}
+                                                    />
+                                                )}
+                                            </AdditionContentContainer>
+                                        );
+                                    })
+                            ) : (
+                                <></>
+                            )}
                             <OverflowActionButtons>
-                                <SkipButton>
+                                <SkipButton onClick={goToNextProfile}>
                                     <Close color="#ec4b66" />
                                 </SkipButton>
                                 <LoveButton onClick={sendLike}>
@@ -163,7 +203,7 @@ const Home = () => {
                             </OverflowActionButtons>
                         </ProfileContentContainer>
                     ) : (
-                        "No profiles found!"
+                        "Looks like you saw all the profiles!"
                     )}
                 </MainContentContainer>
             </HomeAppContainer>
@@ -259,6 +299,12 @@ const ProfileInfoContainer = styled.div`
     flex-direction: row;
     align-items: end;
     padding: 0.5rem 0;
+`;
+
+const ProfileFakeContainer = styled.div`
+    display: flex;
+    flex-direction: row;
+    color: red;
 `;
 
 const ProfileName = styled.span`

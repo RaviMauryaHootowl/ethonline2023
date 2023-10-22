@@ -8,6 +8,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import { Chat, Favorite, Person, Close, ArrowBack } from "@mui/icons-material";
 import moment from "moment";
 import { BounceLoader } from "react-spinners";
+import { toast } from "react-toastify";
 
 const LikesProfile = () => {
     const navigate = useNavigate();
@@ -17,10 +18,10 @@ const LikesProfile = () => {
     const usersTable = "users_80001_8033";
     const likesTable = "likes_80001_8073";
     const privateKey =
-        "8fbbd233d350f9e9d3a13181253c1660280934382295662dc453075f05055731";
+    process.env.REACT_APP_PRIVATE_KEY;
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
-        "https://polygon-mumbai.infura.io/v3/4458cf4d1689497b9a38b1d6bbf05e78"
+        process.env.REACT_APP_RPC_URL
     );
     const signer = wallet.connect(provider);
     const db = new Database({ signer });
@@ -55,6 +56,8 @@ const LikesProfile = () => {
 
         await updateMatch.txn.wait();
         setIsLikeSending(false);
+        toast.success("💘 It's a match!");
+        navigate("/chats");
         // TODO: Add toast to make a match or animation
     };
 
@@ -78,7 +81,9 @@ const LikesProfile = () => {
                         <Favorite fontSize="small" />
                         Hearts
                     </NavOption>
-                    <NavOption>
+                    <NavOption onClick={() => {
+                            navigate("/chats");
+                        }}>
                         <Chat fontSize="small" />
                         Chats
                     </NavOption>
@@ -103,7 +108,7 @@ const LikesProfile = () => {
                     </GoBackButton>
                     {profileInfo.wallet_address ? (
                         <ProfileContentContainer>
-                            <MainProfileImage src="https://hildurko.com/wp-content/uploads/2020/08/Calm-Lake-Landscape-Easy-acrylic-painting-for-beginners-PaintingTutorial-Painting-ASMR.jpg" />
+                            <MainProfileImage src={`https://${profileInfo.profile_json.content[0]}`} />
 
                             <ProfileInfoContainer>
                                 <ProfileName>{profileInfo.name}</ProfileName>
@@ -126,18 +131,19 @@ const LikesProfile = () => {
                                     {profileInfo.profile_json.bio}
                                 </WriteUpAnswer>
                             </ProfileWriteUpContainer>
-                            <AdditionContentContainer>
-                                <WriteUpQuestion>
-                                    Some peaceful paintings
-                                </WriteUpQuestion>
-                                <MainProfileImage src="https://i.ytimg.com/vi/3jEwpJKyKMM/maxresdefault.jpg" />
-                            </AdditionContentContainer>
-                            <AdditionContentContainer>
-                                <WriteUpQuestion>
-                                    What do you love?
-                                </WriteUpQuestion>
-                                <MainProfileImage src="https://www.myhobbyclass.com/storage/Acrylic-painting-of-Spring-season-landscape-painting-with-tree-on.jpg" />
-                            </AdditionContentContainer>
+                            {
+                                profileInfo.profile_json.content.length > 1 ? 
+                                profileInfo.profile_json.content.slice(1).map((c) => {
+                                    return <AdditionContentContainer>
+                                    <WriteUpQuestion>
+                                        More Content
+                                    </WriteUpQuestion>
+                                    {
+                                        c.includes(".mp3") ? <iframe src={`https://${c}`} /> : <MainProfileImage src={`https://${c}`} />
+                                    }
+                                </AdditionContentContainer>
+                                }) : <></>
+                            }
                             <OverflowActionButtons>
                                 <SkipButton>
                                     <Close color="#ec4b66" />

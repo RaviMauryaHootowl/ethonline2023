@@ -15,10 +15,10 @@ const Likes = () => {
     const usersTable = "users_80001_8033";
     const likesTable = "likes_80001_8073";
     const privateKey =
-        "8fbbd233d350f9e9d3a13181253c1660280934382295662dc453075f05055731";
+    process.env.REACT_APP_PRIVATE_KEY;
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
-        "https://polygon-mumbai.infura.io/v3/4458cf4d1689497b9a38b1d6bbf05e78"
+        process.env.REACT_APP_RPC_URL
     );
     const signer = wallet.connect(provider);
     const db = new Database({ signer });
@@ -88,7 +88,7 @@ const Likes = () => {
                                             );
                                         }}
                                     >
-                                        <LikeProfilePic />
+                                        <LikeProfilePic style={{backgroundImage: `url(https://${likeProfile.profile_json.content[0]})`}}/>
                                         <LikeProfileAbout>
                                             <LikeProfileName>
                                                 {likeProfile.name}
@@ -221,7 +221,6 @@ const LikeProfileCard = styled.div`
 const LikeProfilePic = styled.div`
     flex: 2;
     height: 100px;
-    background-image: url("https://hildurko.com/wp-content/uploads/2020/08/Calm-Lake-Landscape-Easy-acrylic-painting-for-beginners-PaintingTutorial-Painting-ASMR.jpg");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

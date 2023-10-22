@@ -4,33 +4,39 @@ import { Wallet, ethers } from "ethers";
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { styled } from "styled-components";
+import bg from "../images/bg.webp";
 
 const Welcome = () => {
     const address = useAddress();
     const navigate = useNavigate();
     const usersTable = "users_80001_8033";
-    const privateKey = "8fbbd233d350f9e9d3a13181253c1660280934382295662dc453075f05055731";
+    const privateKey =
+        process.env.REACT_APP_PRIVATE_KEY;
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
-        "https://polygon-mumbai.infura.io/v3/4458cf4d1689497b9a38b1d6bbf05e78"
-      );
+        process.env.REACT_APP_RPC_URL
+    );
     const signer = wallet.connect(provider);
     const db = new Database({ signer });
 
     const handleAfterLoginNavigation = async (signedInAddress) => {
         const isRegistered = await checkIfAddressRegistered(signedInAddress);
-        if(isRegistered){
+        if (isRegistered) {
             navigate("/feed");
-        }else{
+        } else {
             navigate("/register");
         }
-    }
+    };
 
     const checkIfAddressRegistered = async (signedInAddress) => {
-        const data = await db.prepare(`SELECT * FROM ${usersTable} WHERE wallet_address = '${signedInAddress}';`).all();
+        const data = await db
+            .prepare(
+                `SELECT * FROM ${usersTable} WHERE wallet_address = '${signedInAddress}';`
+            )
+            .all();
         console.log(data.results.length);
         return data.results.length > 0;
-    }
+    };
 
     useEffect(() => {
         if (address) {
@@ -41,7 +47,10 @@ const Welcome = () => {
     return (
         <HomeContainer>
             <HomeAppContainer>
-                <AppLogo>Art & Chai</AppLogo>
+                <AppInfo>
+                    <AppLogo>Art & Chai</AppLogo>
+                    <AppSlogan>A transparent dating app <br/>for creative people!</AppSlogan>
+                </AppInfo>
                 <WalletConnectContainer>
                     <ConnectWallet />
                 </WalletConnectContainer>
@@ -61,7 +70,7 @@ const HomeContainer = styled.div`
 `;
 
 const HomeAppContainer = styled.div`
-    background-color: #f4f4f4;
+    background-image: linear-gradient(#ec4b66, #d12542);
     box-shadow: #00000052 5px 5px 30px;
     width: max(30%, 400px);
     height: 90%;
@@ -73,10 +82,23 @@ const HomeAppContainer = styled.div`
     padding: 1rem;
 `;
 
+const AppInfo = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+`;
+
 const AppLogo = styled.div`
-    color: #ec4b66;
+    color: white;
     font-family: "Pacifico", cursive;
     font-size: 4rem;
+`;
+
+const AppSlogan = styled.div`
+    color: white;
+    font-family: "Pacifico", cursive;
+    font-size: 1.5rem;
+    text-align: center;
 `;
 
 const WalletConnectContainer = styled.div`
