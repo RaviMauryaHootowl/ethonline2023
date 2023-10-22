@@ -24,6 +24,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import '@notifi-network/notifi-react-card/dist/index.css';
 import { ToastContainer } from "react-toastify";
 import EditProfile from "./pages/EditProfile";
+import { SCROLL_CONFIG } from "./scroll-config";
+import Notifi from "./pages/Notifi";
 
 const App = () => {
     const router = createBrowserRouter([
@@ -69,8 +71,10 @@ const App = () => {
                 walletConnect(),
             ]}
             activeChain={Scroll}
+            config={SCROLL_CONFIG}
             clientId={process.env.THIRD_WEB_CLIENT_ID}
         >
+            <Notifi />
             <ToastContainer />
             <RouterProvider router={router}></RouterProvider>
         </ThirdwebProvider>

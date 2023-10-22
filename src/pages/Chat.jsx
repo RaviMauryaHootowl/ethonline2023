@@ -151,21 +151,6 @@ const ChatPage = () => {
     return (
         <HomeContainer>
             <HomeAppContainer>
-                {/* <NotifiContext
-                    // keep this "Production" unless you have a special Development environment set up by Notifi
-                    env="Production"
-                    signMessage={async (message) => {
-                        const result = await chatSigner.signMessage({ message });
-                        return arrayify(result);
-                    }}
-                    walletPublicKey={address ?? ""}
-                    walletBlockchain="POLYGON"
-                >
-                    <NotifiSubscriptionCard
-                        inputs={{ XMTPTopics: topics }}
-                        cardId="614d38d4e4324b68b38125a0d9d0079e"
-                    />
-                </NotifiContext> */}
                 <SideBarNavigationContainer>
                     <NavOption
                         onClick={() => {
