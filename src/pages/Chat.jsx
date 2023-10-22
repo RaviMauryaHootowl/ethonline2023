@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { styled } from "styled-components";
 import { Database } from "@tableland/sdk";
 import { Wallet, ethers } from "ethers";
@@ -8,13 +14,16 @@ import HomeIcon from "@mui/icons-material/Home";
 import { Chat, Favorite, Person } from "@mui/icons-material";
 import moment from "moment";
 import { Client } from "@xmtp/xmtp-js";
+import {Buffer} from "buffer";
+
+window.Buffer = window.Buffer || Buffer;
 
 const ChatPage = () => {
     const navigate = useNavigate();
     const address = useAddress();
     const chatSigner = useSigner();
     const isConnected = !!chatSigner;
-    
+
     const params = useParams();
     const [chatsList, setChatsList] = useState([]);
     const usersTable = "users_80001_8033";
@@ -33,7 +42,29 @@ const ChatPage = () => {
     const convRef = useRef(null);
     const clientRef = useRef(null);
     const [isOnNetwork, setIsOnNetwork] = useState(false);
-    
+
+    // helper function
+    const buildContentTopic = (name) => `/xmtp/0/${name}/proto`;
+
+    const buildUserInviteTopic = useCallback(() => {
+        return buildContentTopic(`invite-${address}`);
+    }, [address]);
+
+    const buildUserIntroTopic = useCallback(() => {
+        return buildContentTopic(`intro-${address}`);
+    }, [address]);
+
+    // this is the object we will pass as input reference
+    let topics = useMemo(
+        () => [buildUserInviteTopic(), buildUserIntroTopic()],
+        [buildUserIntroTopic, buildUserInviteTopic]
+    );
+
+    const addTopic = (topicName) => {
+        if (!topics.includes(topicName)) {
+            topics.push(topicName);
+        }
+    };
 
     const fetchProfileInfo = async () => {
         const likeEntryInDB = await db
@@ -55,48 +86,48 @@ const ChatPage = () => {
     }, [address, params]);
 
     const initXmtp = async () => {
-        const xmtp = await Client.create(chatSigner, {env: 'dev'});
+        const xmtp = await Client.create(chatSigner, { env: "dev" });
         console.log(xmtp);
         newConversation(xmtp, profileInfo.wallet_address);
         setIsOnNetwork(!!xmtp.address);
         clientRef.current = xmtp;
-    }
+    };
 
     const newConversation = async (xmtp_client, addressTo) => {
-        if(await xmtp_client?.canMessage(addressTo)){
-            const conversation = await xmtp_client.conversations.newConversation(
-                addressTo
-            );
+        if (await xmtp_client?.canMessage(addressTo)) {
+            const conversation =
+                await xmtp_client.conversations.newConversation(addressTo);
+            addTopic(conversation);
             convRef.current = conversation;
             const allMessages = await conversation.messages();
             console.log(allMessages);
             setMessages(allMessages);
-        }else{
+        } else {
             alert("Can't sent message as not on network!");
         }
-    }
+    };
 
     const sendMessage = async () => {
-        if(convRef.current && chatMessage){
+        if (convRef.current && chatMessage) {
             await convRef.current.send(chatMessage);
             setChatMessage("");
         }
-    }
+    };
 
     useEffect(() => {
-        if(isOnNetwork && convRef.current){
+        if (isOnNetwork && convRef.current) {
             const streamMessages = async () => {
                 const newStream = await convRef.current.streamMessages();
                 for await (const msg of newStream) {
                     const exists = messages.find((m) => m.id === msg.id);
-                    if(!exists){
+                    if (!exists) {
                         setMessages((prevMessages) => {
                             const msgsnew = [...prevMessages, msg];
                             return msgsnew;
                         });
                     }
                 }
-            }
+            };
             streamMessages();
         }
     }, [isOnNetwork]);
@@ -108,6 +139,21 @@ const ChatPage = () => {
     return (
         <HomeContainer>
             <HomeAppContainer>
+                {/* <NotifiContext
+                    // keep this "Production" unless you have a special Development environment set up by Notifi
+                    env="Production"
+                    signMessage={async (message) => {
+                        const result = await chatSigner.signMessage({ message });
+                        return arrayify(result);
+                    }}
+                    walletPublicKey={address ?? ""}
+                    walletBlockchain="POLYGON"
+                >
+                    <NotifiSubscriptionCard
+                        inputs={{ XMTPTopics: topics }}
+                        cardId="614d38d4e4324b68b38125a0d9d0079e"
+                    />
+                </NotifiContext> */}
                 <SideBarNavigationContainer>
                     <NavOption
                         onClick={() => {
@@ -146,16 +192,23 @@ const ChatPage = () => {
                     </AppHeaderContainer>
                     <ChatPageContainer>
                         <ChatListContainer>
-                        {
-                            messages.map((message) => {
-                                return <ChatBubble isMe={message.senderAddress == address}>{message.content}</ChatBubble>;
-                            })
-                        }
+                            {messages.map((message) => {
+                                return (
+                                    <ChatBubble
+                                        isMe={message.senderAddress == address}
+                                    >
+                                        {message.content}
+                                    </ChatBubble>
+                                );
+                            })}
                         </ChatListContainer>
-                        
-                        <input value={chatMessage} onChange={(e) => {
-                            setChatMessage(e.target.value);
-                        }}/>
+
+                        <input
+                            value={chatMessage}
+                            onChange={(e) => {
+                                setChatMessage(e.target.value);
+                            }}
+                        />
                         <button onClick={sendMessage}>Send</button>
                         <button onClick={initXmtp}>Init XMTP</button>
                     </ChatPageContainer>
@@ -251,10 +304,10 @@ const ChatListContainer = styled.div`
 
 const ChatBubble = styled.div`
     padding: 0.5rem;
-    background-color: ${props => props.isMe ? "#b0b3ff" : "#71ff9b"};
+    background-color: ${(props) => (props.isMe ? "#b0b3ff" : "#71ff9b")};
     margin-bottom: 0.5rem;
     border-radius: 0.5rem;
-    align-self: ${props => props.isMe ? "flex-end" : "flex-start"};
+    align-self: ${(props) => (props.isMe ? "flex-end" : "flex-start")};
 `;
 
 export default ChatPage;

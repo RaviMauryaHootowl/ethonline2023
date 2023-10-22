@@ -21,6 +21,8 @@ import LikesProfile from "./pages/LikesProfile";
 import ChatsList from "./pages/ChatsList";
 import ChatPage from "./pages/Chat";
 
+import '@notifi-network/notifi-react-card/dist/index.css';
+
 const App = () => {
     const router = createBrowserRouter([
         {
