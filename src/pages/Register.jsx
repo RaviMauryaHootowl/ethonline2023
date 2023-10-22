@@ -54,8 +54,7 @@ const Register = () => {
     const [profileGender, setProfileGender] = useState("0");
     const [profileBio, setProfileBio] = useState("");
     const [profilePicFile, setProfilePicFile] = useState(null);
-    const privateKey =
-        "";
+    const privateKey = "";
     const wallet = new Wallet(privateKey);
     const provider = new ethers.providers.JsonRpcProvider(
         process.env.REACT_APP_RPC_URL
@@ -125,8 +124,29 @@ const Register = () => {
             .run();
 
         await insertPost.txn.wait();
+        raiseUMAStatement();
         toast.success("You are in!");
         handleAfterLoginNavigation(address);
+    };
+
+    const raiseUMAStatement = async () => {
+        const contract = getContract(
+            process.env.CONTRACT_ADDRESS,
+            abi,
+            library,
+            address
+        );
+        const truth = `Art & Chai: Is this account authentic? Content URL: ${profilePicFile.map(
+            (contentFile) => {
+                return `${cid}.ipfs.dweb.link/${contentFile.path}`;
+            }
+        )}`;
+        const transaction = await contract.assertTruth(truth);
+        const transactionReceipt = await transaction.wait();
+        if (transactionReceipt.status !== 1) {
+            alert("error message");
+            return;
+        }
     };
 
     const handleAfterLoginNavigation = async (signedInAddress) => {

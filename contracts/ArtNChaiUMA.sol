@@ -176,17 +176,13 @@ contract ArtNChaiUMA {
     OptimisticOracleV3Interface oov3 =
         OptimisticOracleV3Interface(0x9923D42eF695B5dd9911D05Ac944d4cAca3c4EAB);
 
-    // Asserted claim. This is some truth statement about the world and can be verified by the network of disputers.
-    bytes public assertedClaim =
-        bytes("Art & Chai: Is this account authentic? Content URL: bafybeibe4ceyeb2zhfg327wacm2jymwmzrrweoclrsdfd3qnkt22rot45e.ipfs.dweb.link/pic8.png, bafybeibe4ceyeb2zhfg327wacm2jymwmzrrweoclrsdfd3qnkt22rot45e.ipfs.dweb.link/pic9.png");
-
     // Each assertion has an associated assertionID that uniquly identifies the assertion. We will store this here.
     bytes32 public assertionId;
 
     // Assert the truth against the Optimistic Asserter. This uses the assertion with defaults method which defaults
     // all values, such as a) challenge window to 120 seconds (2 mins), b) identifier to ASSERT_TRUTH, c) bond currency
     //  to USDC and c) and default bond size to 0 (which means we dont need to worry about approvals in this example).
-    function assertTruth() public {
+    function assertTruth(bytes memory assertedClaim) public {
         assertionId = oov3.assertTruthWithDefaults(assertedClaim, address(this));
     }
 
